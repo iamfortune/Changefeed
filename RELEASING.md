@@ -185,6 +185,11 @@ What we saw:
   fetches through the Pear CLI's own storage; the installed app keeps its own
   Corestore, which starts empty. Updates after that only fetch changed blocks.
 
+- The app showed "Update ready", and **Restart to update** swapped the build
+  in place: afterwards `~/Applications/Changefeed.app` reports `1.0.1`
+  (Info.plist and `Resources/app/package.json`), the relaunched worker runs
+  with version `1.0.1`, and `pear-runtime/next/` has been cleaned up.
+
 ### Order matters for seeding
 
 An app looks for seeders at startup and then roughly every 15 minutes. Start
