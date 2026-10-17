@@ -1,0 +1,10 @@
+out/
+node_modules/
+todo
+
+# local app/test storage (corestores) — never commit
+storage/
+.storage*/
+*.storage/
+
+.DS_Store
