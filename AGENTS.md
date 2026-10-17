@@ -19,7 +19,8 @@ npm start                            # dev, updates OFF
 npm start -- --updates               # dev + update download (apply can't work in dev)
 npm start -- --storage <dir>         # second instance / custom storage
 npm run lint                         # prettier --check . && lunte  (= CI)
-npm test                             # backend/ on the app's embedded Bare + two-worker IPC test
+npm test                             # backend/ on the app's embedded Bare + two-worker IPC + CLI e2e
+npm run cli -- subscribe <key>       # terminal subscriber (cli/), hosts backend/ directly
 npm run format                       # prettier --write . && lunte --fix
 npm run package                      # → out/Changefeed-<platform>-<arch>/
 npm run make                         # → installers in out/make/

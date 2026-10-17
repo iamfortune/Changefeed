@@ -26,6 +26,18 @@ npm start -- --storage /tmp/changefeed-b   # instance 2, separate storage
 In instance 1, create a feed and copy its key. In instance 2, open
 **Subscribe** and paste it.
 
+## CLI
+
+Follow a feed from the terminal. Same `backend/` as the desktop app, unchanged:
+
+```sh
+npm run cli -- subscribe <feed-key>
+```
+
+Prints every note in the feed, then streams new ones live (marked `● new`).
+Notes are kept on disk, so it also works offline. `--storage <dir>` picks a
+different storage directory.
+
 ## Test
 
 ```sh
@@ -33,8 +45,9 @@ npm test
 ```
 
 Runs the shared backend on the exact Bare runtime the app embeds (two peers
-over the real DHT, live notes, offline reads), then drives two real worker
-processes over IPC.
+over the real DHT, live notes, offline reads), drives two real worker
+processes over IPC, then runs the CLI against a live feed (existing notes,
+live note, Ctrl+C, offline restart).
 
 ## Layout
 
@@ -44,5 +57,7 @@ processes over IPC.
 | `workers/`     | Desktop host: runs `backend/` + the OTA updater in Bare.         |
 | `electron/`    | Window + byte relay between renderer and worker.                 |
 | `renderer/`    | UI (plain HTML/CSS/JS).                                          |
-| `test/`        | Backend and worker tests.                                        |
+| `cli/`         | Terminal subscriber: a second host for `backend/`.               |
+| `scripts/`     | Runs scripts on the Bare binary the app embeds.                  |
+| `test/`        | Backend, worker and CLI tests.                                   |
 | `RELEASING.md` | How releases are built, staged and shipped.                      |

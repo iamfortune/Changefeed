@@ -3,7 +3,8 @@
 // Dependencies can require a minimum Bare version, so testing on a
 // different Bare than the one users get can hide startup failures.
 //
-//   node test/run-on-app-bare.js test/two-peers.js
+//   node scripts/app-bare.js test/two-peers.js     (npm test)
+//   node scripts/app-bare.js cli/bin.mjs subscribe <key>   (npm run cli)
 //
 // The sidecar build of Bare expects an IPC pipe on fd 3 and calls Bare.exit()
 // as soon as that pipe closes (bare-sidecar/lib/runtime.js). So we must give it
@@ -28,4 +29,8 @@ const bin = path.join(
 const child = spawn(bin, process.argv.slice(2), {
   stdio: ['inherit', 'inherit', 'inherit', 'pipe']
 })
+// Ctrl+C reaches both us and the child. Let the child clean up and exit;
+// if we exited first, fd 3 would close and cut its cleanup short.
+process.on('SIGINT', () => {})
+process.on('SIGTERM', () => child.kill('SIGTERM'))
 child.on('exit', (code) => process.exit(code ?? 1))
