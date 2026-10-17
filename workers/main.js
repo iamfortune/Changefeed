@@ -62,7 +62,16 @@ const updaterConfig = {
 const pipe = new FramedStream(Bare.IPC)
 const store = new Corestore(path.join(updaterConfig.dir, 'pear-runtime', 'corestore'))
 const swarm = new Hyperswarm()
-const pear = new PearRuntime({ ...updaterConfig, swarm, store })
+const pear = new PearRuntime({
+  ...updaterConfig,
+  swarm,
+  store,
+  // Apply updates as soon as they arrive, for the demo. The production default
+  // (option omitted) waits a random delay of up to 1 hour after the first 60s
+  // of runtime, so a release doesn't make every install fetch it at once.
+  // pear-runtime passes this straight to pear-runtime-updater.
+  delay: 0
+})
 
 // One replication stream per connection for the whole Corestore. It carries
 // both the app drive (OTA updates) and our feeds. In the template this line
