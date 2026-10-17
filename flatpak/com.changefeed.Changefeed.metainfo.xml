@@ -18,9 +18,9 @@
 
   <content_rating type="oars-1.1"/>
 
-  <url type="homepage">https://github.com/holepunchto/hello-pear-electron</url>
-  <url type="help">https://github.com/holepunchto/hello-pear-electron/issues/new/choose</url>
-  <url type="bugtracker">https://github.com/holepunchto/hello-pear-electron/issues</url>
+  <url type="homepage">https://github.com/iamfortune/Changefeed</url>
+  <url type="help">https://github.com/iamfortune/Changefeed/issues/new</url>
+  <url type="bugtracker">https://github.com/iamfortune/Changefeed/issues</url>
 
   <releases>
     <release date="2026-06-29" version="1.0.0"/>
@@ -42,7 +42,7 @@
   <launchable type="desktop-id">com.changefeed.Changefeed.desktop</launchable>
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/holepunchto/hello-pear-electron/refs/heads/main/assets/flatpak-screenshot.png</image>
+      <image>https://raw.githubusercontent.com/iamfortune/Changefeed/main/assets/screenshot-subscriber.png</image>
     </screenshot>
   </screenshots>
 </component>

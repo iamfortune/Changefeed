@@ -5,7 +5,7 @@
   "upgrade": "pear://7ffucmhbpa7z5hcao4t6435c6ndqryn38iu6nfzqwubqykap15yy",
   "description": "Peer-to-peer release notes: publish once, subscribers keep every note offline.",
   "license": "",
-  "author": "",
+  "author": "Fortune Ikechi",
   "type": "commonjs",
   "main": "electron/main.js",
   "imports": {
@@ -80,5 +80,9 @@
   "allowScripts": {
     "electron@40.10.1": true,
     "electron-winstaller": false
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamfortune/Changefeed.git"
   }
 }

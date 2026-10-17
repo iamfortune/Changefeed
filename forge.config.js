@@ -105,10 +105,10 @@ module.exports = {
           summary: 'Peer-to-peer release-notes feed',
           description:
             'Publish release notes peer to peer. Subscribers follow a feed by key and keep every note offline.',
-          contact: 'hello@holepunchto.to',
+          contact: 'https://github.com/iamfortune/Changefeed/issues',
           license: 'Apache-2.0',
-          issues: 'https://github.com/holepunchto/hello-pear-electron/issues',
-          website: 'https://github.com/holepunchto/hello-pear-electron',
+          issues: 'https://github.com/iamfortune/Changefeed/issues',
+          website: 'https://github.com/iamfortune/Changefeed',
           app: {
             extensions: ['gnome'],
             plugs: [
