@@ -3,7 +3,7 @@
 Holepunch's template for Electron apps with **peer-to-peer OTA updates** (no update
 server). The demo UI is trivial on purpose: the plumbing is the product and forks build
 their app on top of it. Stack: Electron ^40 + Forge ^7.11 (CommonJS), `pear-runtime`
-(worker body in the `hello-pear-worker` package), prettier + lunte.
+(worker body in-project at `workers/main.js`, hosting `backend/`), prettier + lunte.
 [README](README.md) = the human deployment manual (stage → provision → multisig).
 
 Key fact: **the OTA updater does not run in Electron.** `electron/main.js` only
@@ -19,8 +19,9 @@ npm start                            # dev, updates OFF
 npm start -- --updates               # dev + update download (apply can't work in dev)
 npm start -- --storage <dir>         # second instance / custom storage
 npm run lint                         # prettier --check . && lunte  (= CI)
+npm test                             # backend/ on the app's embedded Bare + two-worker IPC test
 npm run format                       # prettier --write . && lunte --fix
-npm run package                      # → out/HelloPear-<platform>-<arch>/
+npm run package                      # → out/Changefeed-<platform>-<arch>/
 npm run make                         # → installers in out/make/
 ```
 

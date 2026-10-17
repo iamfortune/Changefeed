@@ -5,7 +5,8 @@
 > the code is the reference for everything else. Index: [AGENTS.md](../AGENTS.md).
 
 Renderer (sandboxed) ↔ `window.bridge` (Electron IPC) ↔ main (broker only) ↔ fd-3
-FramedStream pipe ↔ Bare worker (`hello-pear-worker`: swarm + corestore + updater).
+FramedStream pipe ↔ Bare worker (`workers/main.js`: swarm + corestore + updater +
+`backend/`). The JSON IPC protocol is documented at the top of `workers/main.js`.
 The code is small — read it for the wiring; below are only the non-obvious facts.
 
 - The paparam parse at the top of `electron/main.js` throws on **any** unknown flag
@@ -17,12 +18,12 @@ The code is small — read it for the wiring; below are only the non-obvious fac
   renderer-supplied specifier with **no allowlist**.
 - Six-arg spawn order (`getWorker()` → worker argv): `updates`, `version`,
   `upgrade`, bundle name (`productName`+ext), storage dir, installed app path.
-  Cross-package contract with `hello-pear-worker` — wrong-but-parseable orders fail
+  Contract with `workers/main.js` (copied from `hello-pear-worker`) — wrong-but-parseable orders fail
   silently. (Worker reads at offset +2 on desktop, 0 on mobile/BareKit; the package
   is shared with `pear-mobile` hosts.)
-- The worker is a module for cross-platform reuse (desktop + mobile). For a
-  single-platform project, copy `hello-pear-worker/index.js` into
-  `workers/main.js` and develop it in-project (per that package's README).
+- The worker is in-project (copied from `hello-pear-worker/index.js` and
+  extended); the `hello-pear-worker` dependency was removed. Shared P2P logic
+  lives in `backend/`, which the worker hosts.
 - Once the worker is in-project it resolves against **this** `package.json`, not the
   package's — so Node builtins it uses need an `imports` entry (see AGENTS.md
   contracts). A missing entry only fails in a packaged build.
@@ -34,7 +35,7 @@ The code is small — read it for the wiring; below are only the non-obvious fac
 - `sendToAll` broadcasts every worker channel to **all** windows; nothing restarts
   a crashed worker.
 - Per-platform storage dir is chosen in `getWorker()` (dev:
-  `<tmpdir>/pear/HelloPear`). Inside: `pear-runtime/corestore`,
+  `<tmpdir>/pear/Changefeed`). Inside: `pear-runtime/corestore`,
   `pear-runtime/next/<length>.<fork>/` (wiped on every updates-enabled launch),
   `app-storage/` (suggested `pear.storage` for app data).
 - **A stall is usually the network, not the code, and the two look identical.** An

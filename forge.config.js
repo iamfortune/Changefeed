@@ -90,9 +90,9 @@ module.exports = {
       name: 'pear-electron-forge-maker-flatpak',
       platforms: ['linux'],
       config: {
-        appId: 'com.pears.HelloPear',
+        appId: 'com.changefeed.Changefeed',
         icon: `${packagerConfig.icon}.png`,
-        comment: 'Integrating Pear into a hello world electron desktop app',
+        comment: 'Peer-to-peer release-notes feed',
         categories: ['Development']
       }
     },
@@ -102,9 +102,9 @@ module.exports = {
       config: {
         icon: `${packagerConfig.icon}.png`,
         snapcraft: {
-          summary: 'Integrating Pear into a hello world electron desktop app',
+          summary: 'Peer-to-peer release-notes feed',
           description:
-            'End-to-end boilerplate for embedding pear-runtime into Electron apps and deploying peer-to-peer application updates.',
+            'Publish release notes peer to peer. Subscribers follow a feed by key and keep every note offline.',
           contact: 'hello@holepunchto.to',
           license: 'Apache-2.0',
           issues: 'https://github.com/holepunchto/hello-pear-electron/issues',

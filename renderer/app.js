@@ -1,7 +1,63 @@
 const bridge = window.bridge
 const decoder = new TextDecoder('utf-8')
+const WORKER = '/workers/main.js'
 
 document.getElementById('v').innerText += bridge.pkg().version
+
+// ---- worker client: JSON request/reply + events (protocol in workers/main.js)
+
+let nextId = 1
+const pending = new Map() // id -> { resolve, reject }
+const listeners = new Map() // event type -> Set(fn)
+
+function request(type, payload) {
+  const id = nextId++
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject })
+    bridge.writeWorkerIPC(WORKER, JSON.stringify({ id, type, payload }))
+  })
+}
+
+function on(type, fn) {
+  if (!listeners.has(type)) listeners.set(type, new Set())
+  listeners.get(type).add(fn)
+  return () => listeners.get(type).delete(fn)
+}
+
+function onMessage(text) {
+  let msg
+  try {
+    msg = JSON.parse(text)
+  } catch {
+    return onWorkerUpdaterEvent(text) // template's plain-string updater messages
+  }
+  if (msg.type === 'reply') {
+    const p = pending.get(msg.id)
+    if (!p) return
+    pending.delete(msg.id)
+    if (msg.ok) p.resolve(msg.payload)
+    else p.reject(new Error(msg.payload.message))
+    return
+  }
+  for (const fn of listeners.get(msg.type) || []) fn(msg.payload)
+}
+
+const cf = {
+  init: () => request('init'),
+  createFeed: (name) => request('create-feed', { name }),
+  publish: (note) => request('publish', note),
+  subscribe: (id) => request('subscribe', { id }),
+  notes: (id) => request('notes', { id }),
+  on
+}
+
+// Exposed for testing from the devtools console until the UI lands.
+window.cf = cf
+cf.on('note', (e) => console.log('note', e))
+cf.on('feed', (e) => console.log('feed', e))
+cf.on('peers', (e) => console.log('peers', e))
+
+// ---- updater (unchanged from the template)
 
 function showUpdateReady() {
   document.getElementById('v').innerText = 'Update ready!'
@@ -28,36 +84,28 @@ function onWorkerUpdaterEvent(name) {
   if (name === 'updated') showUpdateReady()
 }
 
-const workers = {
-  main: '/workers/main.js'
-}
+// ---- worker lifecycle
 
-bridge.startWorker(workers.main)
-let sentHello = false
+bridge.startWorker(WORKER)
 
-const offWorkerStdout = bridge.onWorkerStdout(workers.main, (data) => {
-  console.log('worker stdout', '[', workers.main, ']:', decoder.decode(data))
+const offWorkerStdout = bridge.onWorkerStdout(WORKER, (data) => {
+  console.log('worker stdout:', decoder.decode(data))
 })
 
-const offWorkerStderr = bridge.onWorkerStderr(workers.main, (data) => {
-  console.error('worker stderr', '[', workers.main, ']:', decoder.decode(data))
+const offWorkerStderr = bridge.onWorkerStderr(WORKER, (data) => {
+  console.error('worker stderr:', decoder.decode(data))
 })
 
-const offWorkerIpc = bridge.onWorkerIPC(workers.main, (data) => {
-  const message = decoder.decode(data)
-  console.log('worker ipc', '[', workers.main, ']:', message)
-  onWorkerUpdaterEvent(message)
+const offWorkerIpc = bridge.onWorkerIPC(WORKER, (data) => onMessage(decoder.decode(data)))
 
-  if (!sentHello) {
-    sentHello = true
-    bridge.writeWorkerIPC(workers.main, 'Hello from renderer')
-  }
-})
-
-const offWorkerExit = bridge.onWorkerExit(workers.main, (code) => {
+const offWorkerExit = bridge.onWorkerExit(WORKER, (code) => {
   console.log('Worker exited with code', code)
+  for (const p of pending.values()) p.reject(new Error('Worker exited'))
+  pending.clear()
   offWorkerStdout()
   offWorkerStderr()
   offWorkerIpc()
   offWorkerExit()
 })
+
+cf.init().then((state) => console.log('changefeed ready', state))

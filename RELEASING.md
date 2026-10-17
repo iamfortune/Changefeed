@@ -79,3 +79,40 @@ Nothing was persisted.
 
 `npm run package` is enough for staging; `npm run make` (installers/DMG) is only
 needed for handing out a first install file.
+
+## Phase 3 — rename and worker
+
+The app was renamed from `HelloPear` to **Changefeed** before the first real
+release (`package.json` name/productName, `forge.config.js`,
+`build/AppxManifest.xml`, `flatpak/`). From now on:
+
+```sh
+npm run package      # → out/Changefeed-darwin-arm64/Changefeed.app
+pear build --package=../p2p-app-tether/package.json \
+  --darwin-arm64-app ../p2p-app-tether/out/Changefeed-darwin-arm64/Changefeed.app \
+  --target changefeed-<version>
+```
+
+`pear.json` was **not** changed: any edit to it changes the multisig
+production key, and we don't release through multisig.
+
+### Bare version gotcha
+
+The worker runs on the Bare binary embedded by `bare-sidecar` (a dependency
+of `pear-runtime`), not on any Bare you install yourself. Packages can declare
+a minimum Bare version (`engines.bare`); if one is newer than the embedded
+runtime, the worker dies at boot with `UNSUPPORTED_ENGINE`.
+
+Hit this after adding dependencies: `bare-type@1.4.0` needs Bare ≥ 1.32,
+the lockfile had `bare-sidecar@0.5.2` (Bare 1.29.4). Fixed with
+`npm update bare-sidecar` → 0.5.8 (Bare 1.34.1), within pear-runtime's
+`^0.5.2` range. `npm test` now runs the backend test on that same embedded
+binary (`test/run-on-app-bare.js`) so this can't hide again.
+
+Check before every release:
+
+```sh
+npm test                                  # backend on app Bare + worker IPC
+npm run package                           # then launch the packaged app:
+open -n out/Changefeed-darwin-arm64/Changefeed.app --args --storage /tmp/cf-check
+```

@@ -31,11 +31,11 @@ Apply:
 Seeding / replication:
 
 - Apps join the drive client-only and never seed — run dedicated `pear seed`ers.
-- `store.replicate` is registered **only when updates are enabled**: app data in
-  the worker's corestore won't replicate under the dev default `--no-updates`.
-  When adding app P2P storage, hoist `swarm.on('connection', (c) =>
-store.replicate(c))` out of the updates-gated block and `swarm.join` your app
-  topic separately — only the updater-drive join stays gated behind `updates`.
+- In this project `store.replicate` is registered **unconditionally** in
+  `workers/main.js` (the upstream template gates it behind `updates`). Feeds live
+  in `store.namespace('changefeed')` of the same Corestore, and `backend/` joins
+  their topics itself; only the updater-drive join stays gated behind `updates`.
+  Don't add a second `store.replicate` per connection.
 
 Surface the template doesn't use (see the `pear-runtime` / `pear-runtime-updater`
 READMEs): updater opts `delay` (rollout cap; `0` = instant, good for tests),

@@ -17,7 +17,7 @@
   (+ `KEYCHAIN_PROFILE` for notarization). The `APPLE_*` vars in the README are
   consumed by the CI action, **not** by `forge.config.js`.
 - The snap maker force-sets `base: core24`, strict confinement, name/version and
-  the app command (`HelloPear --no-sandbox`) **after** merging config — overriding
+  the app command (`Changefeed --no-sandbox`) **after** merging config — overriding
   those in the `snapcraft` block is silently ignored.
 - The flatpak maker emits a **tarball** consumed by `flatpak/*.yml`, whose
   URLs/sha512 are localhost placeholders; version syncs by hand in three places.
