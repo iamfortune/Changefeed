@@ -110,6 +110,17 @@ function renderPublish(freshAt) {
   $('own-key').textContent = own.id
   renderStatus($('own-peers'), own, false, { own: true })
   renderNotes($('own-notes'), own.id, freshAt, 'Nothing published yet.')
+
+  // v1.0.1: suggest the next patch version so publishing is one less step.
+  if (!$('note-version').value) $('note-version').value = nextVersion(own.id)
+}
+
+// '1.4.2' → '1.4.3'. Anything that isn't x.y.z is left for the user to type.
+function nextVersion(id) {
+  const latest = (state.notes.get(id) || [])[0]
+  if (!latest) return '1.0.0'
+  const m = latest.version.match(/^v?(\d+)\.(\d+)\.(\d+)$/)
+  return m ? `${m[1]}.${m[2]}.${Number(m[3]) + 1}` : ''
 }
 
 function renderSubscribe(freshAt) {
