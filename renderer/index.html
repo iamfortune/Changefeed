@@ -1,48 +1,116 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Hello Pear</title>
-    <style>
-      body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        margin: 0;
-        background: linear-gradient(135deg, #21c437 0%, #0e4f15 100%);
-        color: white;
-      }
-      h1 {
-        font-size: 48px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-      }
-      #update-btn {
-        display: none;
-        margin-top: 20px;
-        padding: 12px 24px;
-        font-size: 18px;
-        border: 2px solid white;
-        border-radius: 8px;
-        background: green;
-        color: white;
-        cursor: pointer;
-      }
-      #update-btn:hover {
-        background: greenyellow;
-      }
-      .container {
-        text-align: center;
-      }
-    </style>
+    <!-- Notes come from other peers: allow only our own scripts, no remote content. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:"
+    />
+    <title>Changefeed</title>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="container">
-      <h1 id="v">v</h1>
-      <button id="update-btn">Apply update</button>
+    <div id="update-banner" class="banner" hidden>
+      <span id="update-text"></span>
+      <button id="update-btn" class="btn btn-small" hidden>Restart to update</button>
     </div>
+    <div id="error-banner" class="banner banner-error" hidden></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <span class="brand-name">Changefeed</span>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="publish">Publish</button>
+        <button class="tab" role="tab" data-tab="subscribe">
+          Subscribe <span id="unread-total" class="badge" hidden></span>
+        </button>
+      </nav>
+      <span id="version" class="version"></span>
+    </header>
+
+    <main>
+      <!-- Maintainer -->
+      <section id="view-publish" class="view" hidden>
+        <div id="create-feed" class="card empty-card" hidden>
+          <h2>Start a release-notes feed</h2>
+          <p class="muted">
+            Anyone with the feed key can follow it. Notes go straight from this device to
+            subscribers. No server, no account.
+          </p>
+          <form id="create-form" class="row">
+            <input
+              id="feed-name"
+              placeholder="Feed name, e.g. Acme Desktop releases"
+              maxlength="80"
+            />
+            <button class="btn" type="submit">Create feed</button>
+          </form>
+        </div>
+
+        <div id="own-feed" hidden>
+          <div class="card feed-card">
+            <div class="feed-head">
+              <div>
+                <h2 id="own-name"></h2>
+                <span id="own-peers" class="status"></span>
+              </div>
+            </div>
+            <label class="label">Feed key: share it with your users</label>
+            <div class="key-row">
+              <code id="own-key" class="key"></code>
+              <button id="copy-key" class="btn btn-ghost" type="button">Copy</button>
+            </div>
+          </div>
+
+          <form id="publish-form" class="card">
+            <h3>Publish a note</h3>
+            <div class="row">
+              <input id="note-version" class="version-input" placeholder="1.0.1" maxlength="32" />
+              <input id="note-title" placeholder="Title" maxlength="120" />
+            </div>
+            <textarea id="note-body" rows="5" placeholder="What changed?"></textarea>
+            <div class="form-foot">
+              <span id="publish-error" class="error"></span>
+              <span class="muted hint">⌘ Enter</span>
+              <button class="btn" type="submit">Publish</button>
+            </div>
+          </form>
+
+          <h3 class="section-title">Published</h3>
+          <div id="own-notes" class="notes"></div>
+        </div>
+      </section>
+
+      <!-- Subscriber -->
+      <section id="view-subscribe" class="view" hidden>
+        <form id="subscribe-form" class="card row">
+          <input id="sub-key" placeholder="Paste a feed key to follow it" spellcheck="false" />
+          <button class="btn" type="submit">Follow</button>
+        </form>
+        <span id="subscribe-error" class="error"></span>
+
+        <div id="no-subs" class="empty muted" hidden>
+          You're not following any feeds yet. Ask a maintainer for their feed key.
+        </div>
+
+        <div id="subs" class="split" hidden>
+          <aside id="feed-list" class="feed-list"></aside>
+          <div class="feed-detail">
+            <div class="feed-head">
+              <div>
+                <h2 id="sub-name"></h2>
+                <span id="sub-peers" class="status"></span>
+              </div>
+            </div>
+            <div id="sub-notes" class="notes"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
     <script type="module" src="app.js"></script>
   </body>
 </html>

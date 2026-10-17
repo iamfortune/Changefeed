@@ -122,6 +122,8 @@ async function main() {
 
   await fs.promises.rm(root, { recursive: true, force: true })
   log('PASS')
+  // Under the app's sidecar Bare an open IPC pipe keeps us alive: exit explicitly.
+  if (typeof Bare !== 'undefined') Bare.exit(0)
 }
 
 main().catch(async (err) => {

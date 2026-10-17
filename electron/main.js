@@ -114,8 +114,11 @@ function getWorker(specifier) {
 
 async function createWindow() {
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1040,
+    height: 760,
+    minWidth: 720,
+    minHeight: 520,
+    title: 'Changefeed',
     webPreferences: {
       preload: path.join(__dirname, '..', 'electron', 'preload.js'),
       sandbox: true,

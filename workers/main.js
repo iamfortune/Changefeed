@@ -130,6 +130,14 @@ goodbye(async () => {
   await store.close()
 })
 
+// If the app goes away without stopping us (crash, force quit), the IPC pipe
+// ends. Shut down cleanly instead of lingering in the background, still
+// announcing on the DHT and holding the storage lock.
+// 'end', not 'close': the pipe is half-open by default, so when only the
+// other side goes away 'close' never fires (checked by SIGKILLing a parent).
+pipe.on('end', () => goodbye.exit())
+pipe.on('error', (err) => console.error('IPC pipe:', err.message))
+
 pipe.on('data', async (data) => {
   const message = data.toString()
   if (message === 'pear:applyUpdate') {

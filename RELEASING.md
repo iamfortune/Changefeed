@@ -109,6 +109,13 @@ the lockfile had `bare-sidecar@0.5.2` (Bare 1.29.4). Fixed with
 `^0.5.2` range. `npm test` now runs the backend test on that same embedded
 binary (`test/run-on-app-bare.js`) so this can't hide again.
 
+Second gotcha, found in phase 4: the sidecar Bare is not a plain `bare`. Its
+bootstrap (`bare-sidecar/lib/runtime.js`) opens fd 3 as `Bare.IPC` and calls
+`Bare.exit()` when that pipe closes, unless the script has its own `close`
+listener on it. Started without an fd 3, a script is cut off mid-run with
+exit code 0, which looked like a passing test. The runner now passes an open
+fd 3 and test scripts call `Bare.exit(0)` when done.
+
 Check before every release:
 
 ```sh
