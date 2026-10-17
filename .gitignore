@@ -8,3 +8,7 @@ storage/
 *.storage/
 
 .DS_Store
+
+# local working notes, not published
+CLAUDE.md
+NOTES-FOR-VIDEO.md
