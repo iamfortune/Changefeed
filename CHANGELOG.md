@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.2
+
+- Each feed shows how many notes it holds
+
 ## v1.0.1
 
 - Publish form suggests the next version number

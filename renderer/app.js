@@ -68,6 +68,12 @@ function renderNotes(container, id, freshAt, emptyText) {
   if (notes.length === 0) container.append(el('div', 'empty muted', emptyText))
 }
 
+// v1.0.2: how many notes a feed holds, shown next to its status.
+function renderCount(node, id) {
+  const n = (state.notes.get(id) || []).length
+  node.textContent = n === 1 ? '1 note' : `${n} notes`
+}
+
 function renderStatus(node, feed, hasNotes, { own }) {
   node.classList.remove('online', 'offline')
   if (feed.peers > 0) {
@@ -109,6 +115,7 @@ function renderPublish(freshAt) {
   $('own-name').textContent = own.name
   $('own-key').textContent = own.id
   renderStatus($('own-peers'), own, false, { own: true })
+  renderCount($('own-count'), own.id)
   renderNotes($('own-notes'), own.id, freshAt, 'Nothing published yet.')
 
   // v1.0.1: suggest the next patch version so publishing is one less step.
@@ -152,6 +159,7 @@ function renderSubscribe(freshAt) {
   const notes = state.notes.get(feed.id) || []
   $('sub-name').textContent = feed.name || 'Waiting for feed ' + shortKey(feed.id)
   renderStatus($('sub-peers'), feed, notes.length > 0, { own: false })
+  renderCount($('sub-count'), feed.id)
   renderNotes(
     $('sub-notes'),
     feed.id,
