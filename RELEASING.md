@@ -167,11 +167,12 @@ A seeder must be online at the time.
 
 ### Results
 
-| Release | Verlink                  | Notes                                                              |
-| ------- | ------------------------ | ------------------------------------------------------------------ |
-| v1.0.0  | `pear://0.1527.7ffu…5yy` | Installed from the link: 366 MB from 1 peer (the seeder)           |
-| v1.0.1  | `pear://0.1536.7ffu…5yy` | Diff: 9 files, a few kB. Running install had it in `next/` in ~4 s |
-| v1.0.2  | `pear://0.1585.7ffu…5yy` | Note counts. Running install had it in `next/` in ~1 s; applied    |
+| Release | Verlink                  | Notes                                                                    |
+| ------- | ------------------------ | ------------------------------------------------------------------------ |
+| v1.0.0  | `pear://0.1527.7ffu…5yy` | Installed from the link: 366 MB from 1 peer (the seeder)                 |
+| v1.0.1  | `pear://0.1536.7ffu…5yy` | Diff: 9 files, a few kB. Running install had it in `next/` in ~4 s       |
+| v1.0.2  | `pear://0.1585.7ffu…5yy` | Note counts. Running install had it in `next/` in ~1 s; applied          |
+| v1.0.3  | `pear://0.1601.7ffu…5yy` | Banner fix. Running install fetching it in ~2 s; applied from the banner |
 
 What we saw:
 
@@ -211,4 +212,6 @@ running `pear seed`).
   a Hyperdrive is append-only.
 - **"Update ready" is sent once.** On macOS, closing the window leaves the app
   running. The update downloaded while no window was open, so the message went
-  nowhere and no banner appeared. Quitting and reopening the app showed it.
+  nowhere and no banner appeared. Fixed in v1.0.3: the worker remembers the
+  last updater event and returns it from `init`, which every window calls
+  when it loads.
