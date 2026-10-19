@@ -1,7 +1,7 @@
 {
   "name": "changefeed",
   "productName": "Changefeed",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "upgrade": "pear://7ffucmhbpa7z5hcao4t6435c6ndqryn38iu6nfzqwubqykap15yy",
   "description": "Peer-to-peer release notes: publish once, subscribers keep every note offline.",
   "license": "",
