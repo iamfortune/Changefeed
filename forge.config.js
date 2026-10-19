@@ -30,9 +30,10 @@ let packagerConfig = {
   protocols: [{ name: appName, schemes: [pkg.name] }],
   derefSymlinks: true,
   // The packager copies the whole project folder; .gitignore doesn't apply.
-  // Keep local-only files out of the app (and so out of the pear:// link).
+  // Top-level docs aren't needed at runtime (and some are local-only), so
+  // keep them out of the app and the pear:// link.
   // /out/ is Forge's default, which setting `ignore` replaces.
-  ignore: [/^\/out\//, /^\/CLAUDE\.md$/, /^\/NOTES-FOR-VIDEO\.md$/, /^\/todo$/]
+  ignore: [/^\/out\//, /^\/[^/]+\.md$/, /^\/todo$/]
 }
 
 if (process.env.MAC_CODESIGN_IDENTITY) {
