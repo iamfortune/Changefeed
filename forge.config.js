@@ -28,7 +28,11 @@ function getWindowsKitVersion() {
 let packagerConfig = {
   icon: 'build/icon',
   protocols: [{ name: appName, schemes: [pkg.name] }],
-  derefSymlinks: true
+  derefSymlinks: true,
+  // The packager copies the whole project folder; .gitignore doesn't apply.
+  // Keep local-only files out of the app (and so out of the pear:// link).
+  // /out/ is Forge's default, which setting `ignore` replaces.
+  ignore: [/^\/out\//, /^\/CLAUDE\.md$/, /^\/NOTES-FOR-VIDEO\.md$/, /^\/todo$/]
 }
 
 if (process.env.MAC_CODESIGN_IDENTITY) {
