@@ -171,6 +171,7 @@ A seeder must be online at the time.
 | ------- | ------------------------ | ------------------------------------------------------------------ |
 | v1.0.0  | `pear://0.1527.7ffu…5yy` | Installed from the link: 366 MB from 1 peer (the seeder)           |
 | v1.0.1  | `pear://0.1536.7ffu…5yy` | Diff: 9 files, a few kB. Running install had it in `next/` in ~4 s |
+| v1.0.2  | `pear://0.1585.7ffu…5yy` | Note counts. Running install had it in `next/` in ~1 s; applied    |
 
 What we saw:
 
@@ -198,3 +199,16 @@ release until its next lookup. The seeder here reports `firewalled: true`,
 `NAT type consistent`: holepunching works, but for others to install while
 this laptop is closed, the link needs an always-on seeder (e.g. a small VPS
 running `pear seed`).
+
+### v1.0.2 notes
+
+- **Packaging leaked local files.** Electron Packager copies the whole project
+  folder and does not read `.gitignore`, so local-only files ended up inside
+  v1.0.0 and v1.0.1. `forge.config.js` now sets `packagerConfig.ignore`
+  (which replaces Forge's default `/out/` rule, so that is listed again).
+  Check `out/Changefeed-darwin-arm64/Changefeed.app/Contents/Resources/app/`
+  before every `pear build`. Older versions on the link still contain them:
+  a Hyperdrive is append-only.
+- **"Update ready" is sent once.** On macOS, closing the window leaves the app
+  running. The update downloaded while no window was open, so the message went
+  nowhere and no banner appeared. Quitting and reopening the app showed it.
