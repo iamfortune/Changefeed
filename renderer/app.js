@@ -273,7 +273,7 @@ cf.on('exit', () => {
 
 // ---- OTA updates (driven by the template's updater messages) ---------------
 
-cf.on('updater', (message) => {
+function showUpdate(message) {
   const banner = $('update-banner')
   const btn = $('update-btn')
   if (message === 'updating') {
@@ -285,7 +285,9 @@ cf.on('updater', (message) => {
     btn.hidden = false
     $('update-text').textContent = 'Update ready.'
   }
-})
+}
+
+cf.on('updater', showUpdate)
 
 $('update-btn').onclick = async () => {
   const btn = $('update-btn')
@@ -305,7 +307,9 @@ $('update-btn').onclick = async () => {
 $('version').textContent = 'v' + cf.version
 
 async function boot() {
-  const { own, feeds } = await cf.init()
+  const { own, feeds, update } = await cf.init()
+  // A window opened after the updater event still shows the banner.
+  if (update) showUpdate(update)
   for (const info of [own, ...feeds].filter(Boolean)) {
     setFeed(info)
     addNotes(info.id, await cf.notes(info.id))

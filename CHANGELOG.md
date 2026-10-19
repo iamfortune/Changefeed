@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.3
+
+- The "Update ready" banner also shows in a window opened after the update arrived
+
 ## v1.0.2
 
 - Each feed shows how many notes it holds

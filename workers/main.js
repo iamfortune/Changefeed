@@ -20,7 +20,8 @@
 //   worker → app   { type: 'reply', id, ok, payload } reply (ok: false → payload.message)
 //
 //   requests:
-//     'init'         → { version, own: feedInfo|null, feeds: [feedInfo] }
+//     'init'         → { version, update, own: feedInfo|null, feeds: [feedInfo] }
+//                       update: null | 'updating' | 'updated' (see below)
 //     'create-feed'  { name }                  → feedInfo
 //     'publish'      { version, title, body }  → note
 //     'subscribe'    { id }                    → feedInfo
@@ -90,8 +91,18 @@ if (updaterConfig.updates !== false) {
 
 console.log('Application storage:', pear.storage)
 
-pear.updater.on('updating', () => pipe.write('updating'))
-pear.updater.on('updated', () => pipe.write('updated'))
+// The updater events are one-shot: if no window is open when they fire (on
+// macOS the app keeps running with its window closed), the banner is missed.
+// Remember the last one so 'init' can tell a window opened later.
+let update = null
+pear.updater.on('updating', () => {
+  update = 'updating'
+  pipe.write('updating')
+})
+pear.updater.on('updated', () => {
+  update = 'updated'
+  pipe.write('updated')
+})
 
 // A namespace keeps our core names from colliding with the updater's.
 // Same underlying store, so the replication above covers it.
@@ -111,6 +122,7 @@ const handlers = {
     await changefeed.ready()
     return {
       version: updaterConfig.version,
+      update,
       own: changefeed.getOwnFeed(),
       feeds: changefeed.list()
     }

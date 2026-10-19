@@ -92,6 +92,7 @@ async function main() {
 
   const s1 = await w1.request('init')
   assert(s1.version === pkg.version && s1.own === null, 'worker 1 init: no feed yet')
+  assert(s1.update === null, 'worker 1 init: no pending update')
 
   const own = await w1.request('create-feed', { name: 'IPC test feed' })
   log('feed', own.id)
