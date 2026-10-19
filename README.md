@@ -12,6 +12,40 @@ over-the-air updates delivered peer to peer.
 
 ![Subscriber view](assets/screenshot-subscriber.png)
 
+## Try it in 2 minutes
+
+macOS on Apple silicon:
+
+```sh
+# 1. Install the Pear CLI, then open a new terminal so `pear` is on your PATH
+curl https://install.pears.com/pear.sh | sh
+
+# 2. Install Changefeed from its pear:// link
+pear install pear://7ffucmhbpa7z5hcao4t6435c6ndqryn38iu6nfzqwubqykap15yy
+```
+
+3. Open **Changefeed** from `~/Applications`, go to **Subscribe** and paste
+   this demo feed key:
+
+   ```
+   truftdtxp1mbq7mpkgrsputayfhsytsfjacsmuknpyozasug7pzo
+   ```
+
+   The notes sync down and stay readable offline. Then try **Publish** to
+   start your own feed.
+
+Or follow the same feed from the terminal (macOS or Linux, with Node):
+
+```sh
+git clone https://github.com/iamfortune/Changefeed && cd Changefeed
+npm install
+npm run cli -- subscribe truftdtxp1mbq7mpkgrsputayfhsytsfjacsmuknpyozasug7pzo
+```
+
+The app link and the demo feed are kept online around the clock by an
+always-on peer: a small server running `pear seed` and the Changefeed CLI.
+It is just another peer, holding copies; nothing in the app depends on it.
+
 ## The problem
 
 Release notes usually live on a website, a mailing list or a GitHub releases
@@ -38,10 +72,9 @@ pear install pear://7ffucmhbpa7z5hcao4t6435c6ndqryn38iu6nfzqwubqykap15yy
 This installs `Changefeed.app` to `~/Applications`. Releases are currently
 built for **macOS on Apple silicon** only.
 
-> **A seeder has to be online.** There is no download server: the app is
-> fetched from peers that hold it. If the install hangs on "looking for
-> peers", nobody is seeding the link right now. See
-> [Known limitations](#known-limitations).
+> **There is no download server.** The app is fetched from peers that hold
+> it. An always-on peer seeds the link (see [Try it](#try-it-in-2-minutes)).
+> If the install hangs on "looking for peers", no seeder is reachable.
 
 ## How to use it
 
@@ -247,11 +280,11 @@ All three suites run on the exact Bare binary the app embeds:
 ## Known limitations
 
 - **Needs a seeder for installs and updates.** Apps don't seed the app itself;
-  `pear seed` has to be running somewhere. Right now that's the author's
-  laptop, so the link only installs while it's on. An always-on seeder (a
-  small VPS running `pear seed`) fixes that. Feeds have the same property:
-  a subscriber needs the maintainer or another subscriber online to get new
-  notes.
+  `pear seed` has to be running somewhere. For now that's one small server
+  (plus the author's laptop): if both are down, the link can't be installed.
+  More seeders, ideally run by different people, would remove that single
+  point. Feeds work the same way: a subscriber needs the maintainer or another
+  subscriber online to get new notes.
 - **Stage link instead of multisig.** Production Pear apps release through
   stage → provision → multisig, which needs at least three machines seeding.
   This app ships on the stage link, so one key can push updates.
@@ -272,7 +305,7 @@ All three suites run on the exact Bare binary the app embeds:
   key. A next step is linking notes to the software's own signing key, so a
   note can prove it describes a specific release.
 - **Mobile** through pear-mobile, reusing `backend/` and the worker.
-- **An always-on seeder** and multisig releases.
+- **More seeders** and multisig releases.
 - Builds for Linux, Windows and Intel Macs.
 
 ## Layout
