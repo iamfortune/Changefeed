@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.4
+
+- Release used to demo an over-the-air update on video (no app changes)
+
 ## v1.0.3
 
 - The "Update ready" banner also shows in a window opened after the update arrived
