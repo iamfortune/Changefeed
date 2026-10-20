@@ -10,31 +10,25 @@ FramedStream pipe ↔ Bare worker (`workers/main.js`: swarm + corestore + update
 The code is small — read it for the wiring; below are only the non-obvious facts.
 
 - The paparam parse at the top of `electron/main.js` throws on **any** unknown flag
-  or positional → packaged app crashes at startup. This also makes Win/Linux deep
-  links unreachable (a URL in argv kills the process before the single-instance
-  lock; only macOS `'open-url'` works).
+  or positional → packaged app crashes at startup. The app registers no URL scheme.
 - The worker specifier `'/workers/main.js'` is the worker's **identity** — embedded
-  in every IPC channel name; must start with `/`; `pear:startWorker` resolves any
-  renderer-supplied specifier with **no allowlist**.
+  in every IPC channel name; must start with `/`. `pear:startWorker` rejects any
+  other specifier.
 - Six-arg spawn order (`getWorker()` → worker argv): `updates`, `version`,
   `upgrade`, bundle name (`productName`+ext), storage dir, installed app path.
-  Contract with `workers/main.js` (copied from `hello-pear-worker`) — wrong-but-parseable orders fail
-  silently. (Worker reads at offset +2 on desktop, 0 on mobile/BareKit; the package
-  is shared with `pear-mobile` hosts.)
-- The worker is in-project (copied from `hello-pear-worker/index.js` and
-  extended); the `hello-pear-worker` dependency was removed. Shared P2P logic
-  lives in `backend/`, which the worker hosts.
-- Once the worker is in-project it resolves against **this** `package.json`, not the
-  package's — so Node builtins it uses need an `imports` entry (see AGENTS.md
-  contracts). A missing entry only fails in a packaged build.
+  Wrong-but-parseable orders fail silently. (Worker reads at offset +2 on
+  desktop, 0 on mobile/BareKit.)
+- The worker resolves modules against this `package.json`, so Node builtins it
+  uses need an `imports` entry. A missing entry only fails in a packaged build.
 - Pipe protocol = plain UTF-8 strings in FramedStream frames, matched by exact
   equality. Unknown →worker strings get `console.log`ged; unknown worker→ strings
   are forwarded to the renderer.
-- `pear:applyUpdate` is hardwired to `'/workers/main.js'`, lazily respawns a dead
-  worker, and its promise has no reject/timeout — any failure = renderer hangs.
+- `pear:applyUpdate` is hardwired to `'/workers/main.js'` and lazily respawns a
+  dead worker. It rejects when the worker replies `pear:updateFailed:<message>`,
+  but has no timeout: a worker that never replies still hangs the renderer.
 - `sendToAll` broadcasts every worker channel to **all** windows; nothing restarts
   a crashed worker.
-- Per-platform storage dir is chosen in `getWorker()` (dev:
+- Per-platform storage dir is chosen in `getStorageDir()` (dev:
   `<tmpdir>/pear/Changefeed`). Inside: `pear-runtime/corestore`,
   `pear-runtime/next/<length>.<fork>/` (wiped on every updates-enabled launch),
   `app-storage/` (suggested `pear.storage` for app data).

@@ -14,8 +14,8 @@
   across builds or Windows rejects OTA updates. Rebrand fields appear in several
   places; only Version is auto-synced.
 - macOS signing activates only when `MAC_CODESIGN_IDENTITY` is set
-  (+ `KEYCHAIN_PROFILE` for notarization). The `APPLE_*` vars in the README are
-  consumed by the CI action, **not** by `forge.config.js`.
+  (+ `KEYCHAIN_PROFILE` for notarization). The `APPLE_*` secrets in
+  `build-release.yml` are consumed by the CI action, **not** by `forge.config.js`.
 - The snap maker force-sets `base: core24`, strict confinement, name/version and
   the app command (`Changefeed --no-sandbox`) **after** merging config — overriding
   those in the `snapcraft` block is silently ignored.

@@ -9,7 +9,6 @@ const { command, flag } = require('paparam')
 const pkg = require('../package.json')
 const { name, productName, version, upgrade } = pkg
 
-const protocol = name
 const mainWorkerSpecifier = '/workers/main.js'
 
 const workers = new Map()
@@ -47,26 +46,21 @@ function sendToAll(name, data) {
   }
 }
 
+function getStorageDir(appPath) {
+  if (pearStore) return pearStore
+  if (appPath === null) return path.join(os.tmpdir(), 'pear', appName)
+  if (isMac) return path.join(os.homedir(), 'Library', 'Application Support', appName)
+  if (isWindows) return path.join(os.homedir(), 'AppData', 'Local', appName)
+  if (process.env.SNAP_USER_COMMON) return path.join(process.env.SNAP_USER_COMMON, appName)
+  const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config')
+  return path.join(configHome, appName)
+}
+
 function getWorker(specifier) {
   if (workers.has(specifier)) return workers.get(specifier)
   const appPath = getAppPath()
-  let dir = null
-  if (pearStore) {
-    console.log('pear store: ' + pearStore)
-    dir = pearStore
-  } else if (appPath === null) {
-    dir = path.join(os.tmpdir(), 'pear', appName)
-  } else {
-    const isSnap = !!process.env.SNAP_USER_COMMON
-    const linuxConfigHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config')
-    dir = isMac
-      ? path.join(os.homedir(), 'Library', 'Application Support', appName)
-      : isLinux
-        ? isSnap
-          ? path.join(process.env.SNAP_USER_COMMON, appName)
-          : path.join(linuxConfigHome, appName)
-        : path.join(os.homedir(), 'AppData', 'Local', appName)
-  }
+  const dir = getStorageDir(appPath)
+  console.log('storage: ' + dir)
 
   const extension = isLinux ? '.AppImage' : isMac ? '.app' : '.msix'
 
@@ -120,20 +114,12 @@ async function createWindow() {
     minHeight: 520,
     title: 'Changefeed',
     webPreferences: {
-      preload: path.join(__dirname, '..', 'electron', 'preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       sandbox: true,
       nodeIntegration: false,
       contextIsolation: true
     }
   })
-
-  const devServerUrl = process.env.PEAR_DEV_SERVER_URL
-
-  if (devServerUrl) {
-    await win.loadURL(devServerUrl)
-    win.webContents.openDevTools()
-    return
-  }
 
   await win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'))
 }
@@ -148,6 +134,9 @@ ipcMain.handle('pear:applyUpdate', () => {
       if (message === 'pear:updateApplied') {
         pipe.removeListener('data', onData)
         resolve()
+      } else if (message.startsWith('pear:updateFailed:')) {
+        pipe.removeListener('data', onData)
+        reject(new Error(message.slice('pear:updateFailed:'.length)))
       }
     }
 
@@ -155,8 +144,9 @@ ipcMain.handle('pear:applyUpdate', () => {
     pipe.write('pear:applyUpdate')
   })
 })
-ipcMain.handle('pear:startWorker', (evt, filename) => {
-  getWorker(filename)
+ipcMain.handle('pear:startWorker', (evt, specifier) => {
+  if (specifier !== mainWorkerSpecifier) throw new Error('Unknown worker: ' + specifier)
+  getWorker(specifier)
   return true
 })
 ipcMain.handle('app:afterUpdate', () => {
@@ -174,25 +164,16 @@ ipcMain.handle('app:afterUpdate', () => {
   app.quit()
 })
 
-function handleDeepLink(url) {
-  console.log('deep link:', url)
-}
-
-app.setAsDefaultProtocolClient(protocol)
-
-app.on('open-url', (evt, url) => {
-  evt.preventDefault()
-  handleDeepLink(url)
-})
-
 const lock = app.requestSingleInstanceLock()
 
 if (!lock) {
   app.quit()
 } else {
-  app.on('second-instance', (evt, args) => {
-    const url = args.find((arg) => arg.startsWith(protocol + '://'))
-    if (url) handleDeepLink(url)
+  app.on('second-instance', () => {
+    const [win] = BrowserWindow.getAllWindows()
+    if (!win) return
+    if (win.isMinimized()) win.restore()
+    win.focus()
   })
 
   app.whenReady().then(() => {
@@ -211,8 +192,6 @@ if (!lock) {
   })
 
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-      app.quit()
-    }
+    if (!isMac) app.quit()
   })
 }

@@ -21,11 +21,10 @@ Apply:
 - Works: macOS `.app` and Linux AppImage (`fsx.swap`), Windows MSIX (`addPackage`)
   or `.exe` (rename dance). **Impossible on snap/flatpak** (swap target is the
   read-only install mount) — those update via their stores; an attempted apply
-  throws in the worker and the renderer hangs.
+  throws in the worker, which replies `pear:updateFailed:<message>` and the UI
+  shows "Update failed".
 - One-shot latch: `applied = true` is set **before** the swap → a failed apply
-  can't be retried in-process; the worker handler has no try/catch and the main
-  promise no reject/timeout → every failure mode is a silent hang. Real update UX
-  needs a try/catch + failure reply in the worker.
+  can't be retried in-process; the user must restart the app.
 - Dev (`--updates`): download path only — apply would target a file named `'null'`.
 
 Seeding / replication:

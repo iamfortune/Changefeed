@@ -1,10 +1,6 @@
 import { cf } from './worker-client.js'
 
-window.cf = cf // handy for poking at the backend from devtools
-
 const $ = (id) => document.getElementById(id)
-
-// ---- state ------------------------------------------------------------------
 
 const state = {
   tab: 'publish',
@@ -16,7 +12,7 @@ const state = {
 }
 
 function addNotes(id, incoming) {
-  // Dedupe by createdAt: a note can arrive as an event and in a notes() read.
+  // A note can arrive both as an event and from cf.notes().
   const list = state.notes.get(id) || []
   const seen = new Set(list.map((n) => n.createdAt))
   for (const n of incoming) if (!seen.has(n.createdAt)) list.push(n)
@@ -34,9 +30,7 @@ function getFeed(id) {
   return state.feeds.get(id)
 }
 
-// ---- small DOM helpers ------------------------------------------------------
-
-// Everything from peers is rendered with textContent, never innerHTML.
+// Peer content is set with textContent, never innerHTML.
 function el(tag, className, text) {
   const node = document.createElement(tag)
   if (className) node.className = className
@@ -68,7 +62,6 @@ function renderNotes(container, id, freshAt, emptyText) {
   if (notes.length === 0) container.append(el('div', 'empty muted', emptyText))
 }
 
-// v1.0.2: how many notes a feed holds, shown next to its status.
 function renderCount(node, id) {
   const n = (state.notes.get(id) || []).length
   node.textContent = n === 1 ? '1 note' : `${n} notes`
@@ -90,8 +83,6 @@ function renderStatus(node, feed, hasNotes, { own }) {
     node.textContent = 'Looking for peers…'
   }
 }
-
-// ---- render -----------------------------------------------------------------
 
 function renderTabs() {
   for (const tab of document.querySelectorAll('.tab')) {
@@ -118,11 +109,10 @@ function renderPublish(freshAt) {
   renderCount($('own-count'), own.id)
   renderNotes($('own-notes'), own.id, freshAt, 'Nothing published yet.')
 
-  // v1.0.1: suggest the next patch version so publishing is one less step.
   if (!$('note-version').value) $('note-version').value = nextVersion(own.id)
 }
 
-// '1.4.2' → '1.4.3'. Anything that isn't x.y.z is left for the user to type.
+// Suggests the next patch version: '1.4.2' → '1.4.3'.
 function nextVersion(id) {
   const latest = (state.notes.get(id) || [])[0]
   if (!latest) return '1.0.0'
@@ -174,8 +164,6 @@ function render(freshAt) {
   renderPublish(freshAt)
 }
 
-// ---- actions ----------------------------------------------------------------
-
 for (const tab of document.querySelectorAll('.tab')) {
   tab.onclick = () => {
     state.tab = tab.dataset.tab
@@ -185,11 +173,15 @@ for (const tab of document.querySelectorAll('.tab')) {
 
 $('create-form').onsubmit = async (e) => {
   e.preventDefault()
-  const info = await cf.createFeed($('feed-name').value.trim())
-  setFeed(info)
-  addNotes(info.id, await cf.notes(info.id))
-  render()
-  $('note-version').focus()
+  try {
+    const info = await cf.createFeed($('feed-name').value.trim())
+    setFeed(info)
+    addNotes(info.id, await cf.notes(info.id))
+    render()
+    $('note-version').focus()
+  } catch (err) {
+    showError(err.message)
+  }
 }
 
 $('copy-key').onclick = async () => {
@@ -208,7 +200,7 @@ async function publish() {
       title: $('note-title').value,
       body: $('note-body').value
     })
-    // The note itself comes back as a 'note' event, same path as remote notes.
+    // The note comes back as a 'note' event, like notes from peers.
     $('publish-form').reset()
     $('note-version').focus()
   } catch (err) {
@@ -244,8 +236,6 @@ $('subscribe-form').onsubmit = async (e) => {
   }
 }
 
-// ---- events from the worker -------------------------------------------------
-
 cf.on('note', ({ feed, note }) => {
   addNotes(feed, [note])
   const isOwn = state.own && state.own.id === feed
@@ -266,12 +256,12 @@ cf.on('peers', ({ feed, peers }) => {
   render()
 })
 
-cf.on('exit', () => {
-  $('error-banner').textContent = 'The P2P backend stopped. Restart the app.'
+function showError(message) {
+  $('error-banner').textContent = message
   $('error-banner').hidden = false
-})
+}
 
-// ---- OTA updates (driven by the template's updater messages) ---------------
+cf.on('exit', () => showError('The app stopped syncing. Restart the app.'))
 
 function showUpdate(message) {
   const banner = $('update-banner')
@@ -302,24 +292,18 @@ $('update-btn').onclick = async () => {
   }
 }
 
-// ---- boot -------------------------------------------------------------------
-
 $('version').textContent = 'v' + cf.version
 
 async function boot() {
   const { own, feeds, update } = await cf.init()
-  // A window opened after the updater event still shows the banner.
   if (update) showUpdate(update)
   for (const info of [own, ...feeds].filter(Boolean)) {
     setFeed(info)
     addNotes(info.id, await cf.notes(info.id))
   }
-  // Land where the user has something: their feed, else what they follow.
+  // Open on the user's own feed, or on the feeds they follow.
   state.tab = own || state.feeds.size === 0 ? 'publish' : 'subscribe'
   render()
 }
 
-boot().catch((err) => {
-  $('error-banner').textContent = 'Failed to start: ' + err.message
-  $('error-banner').hidden = false
-})
+boot().catch((err) => showError('Failed to start: ' + err.message))

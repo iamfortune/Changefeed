@@ -9,14 +9,13 @@
   dispatch, five per-platform jobs gated on the GitHub `release` environment
   (signing secrets live there); covers only "make distributables" — `pear build`
   and staging stay manual.
-- `publish.yml` npm-publishes on any `v*` tag (what `npm version` creates) — don't
-  tag unless releasing.
 - Rebrand trap: CI lowercases `productName` with `tr` only, but the snap/flatpak
   makers also replace non-`[a-z0-9-]` chars — a `productName` with spaces or
   punctuation breaks the Linux jobs' artifact lookup.
 - `package.json#upgrade` decides the release line — every build follows the link it
-  ships with. `pear.json#multisig` derives the production key: **any edit = new
-  key**.
+  ships with. Releases go to the stage link; there is no `pear.json`, so
+  multisig would need one created first (its config derives the production key:
+  **any later edit = new key**).
 - Keep the `pear build` Deployment Directory outside the app folder. Rollback =
   stage a higher version (no downgrade path).
 - **Multisig needs ≥3 machines, not 3 keys.** `pear multisig request|verify|commit`

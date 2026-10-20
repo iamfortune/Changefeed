@@ -1,21 +1,15 @@
-// Runs a script on the exact Bare binary the desktop app embeds
-// (bare-sidecar, via pear-runtime), not a separately installed `bare`.
-// Dependencies can require a minimum Bare version, so testing on a
-// different Bare than the one users get can hide startup failures.
+// Runs a script on the same Bare binary the desktop app ships with.
 //
-//   node scripts/app-bare.js test/two-peers.js     (npm test)
-//   node scripts/app-bare.js cli/bin.mjs subscribe <key>   (npm run cli)
+//   node scripts/app-bare.js test/two-peers.js
+//   node scripts/app-bare.js cli/bin.mjs subscribe <key>
 //
-// The sidecar build of Bare expects an IPC pipe on fd 3 and calls Bare.exit()
-// as soon as that pipe closes (bare-sidecar/lib/runtime.js). So we must give it
-// an fd 3 that stays open, or the script is cut off mid-run with exit code 0
-// (a silent false pass). An open pipe also keeps the child alive, so scripts
-// run this way must call Bare.exit() themselves when done.
+// This Bare build exits as soon as its pipe on fd 3 closes, so fd 3 is kept
+// open. Scripts run this way must call Bare.exit() when done.
 
 const { spawn } = require('child_process')
 const path = require('path')
 
-// Resolve bare-sidecar the way pear-runtime does, so we get its copy.
+// Use the copy of bare-sidecar that pear-runtime depends on.
 const sidecarDir = path.dirname(
   require.resolve('bare-sidecar', { paths: [path.dirname(require.resolve('pear-runtime'))] })
 )
@@ -29,8 +23,7 @@ const bin = path.join(
 const child = spawn(bin, process.argv.slice(2), {
   stdio: ['inherit', 'inherit', 'inherit', 'pipe']
 })
-// Ctrl+C reaches both us and the child. Let the child clean up and exit;
-// if we exited first, fd 3 would close and cut its cleanup short.
+// Ctrl+C reaches the child too. Wait for it to clean up and exit.
 process.on('SIGINT', () => {})
 process.on('SIGTERM', () => child.kill('SIGTERM'))
 child.on('exit', (code) => process.exit(code ?? 1))

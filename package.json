@@ -85,6 +85,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iamfortune/Changefeed.git"
+    "url": "git+https://github.com/iamfortune/changefeed.git"
   }
 }

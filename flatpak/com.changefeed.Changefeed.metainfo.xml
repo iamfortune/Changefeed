@@ -18,9 +18,9 @@
 
   <content_rating type="oars-1.1"/>
 
-  <url type="homepage">https://github.com/iamfortune/Changefeed</url>
-  <url type="help">https://github.com/iamfortune/Changefeed/issues/new</url>
-  <url type="bugtracker">https://github.com/iamfortune/Changefeed/issues</url>
+  <url type="homepage">https://github.com/iamfortune/changefeed</url>
+  <url type="help">https://github.com/iamfortune/changefeed/issues/new</url>
+  <url type="bugtracker">https://github.com/iamfortune/changefeed/issues</url>
 
   <releases>
     <release date="2026-06-29" version="1.0.0"/>

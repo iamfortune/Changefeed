@@ -1,15 +1,11 @@
-// End-to-end check of backend/ with two independent peers over the real DHT.
-//
-//   npm test            (runs under Bare — the runtime the app ships with)
-//   node test/two-peers.js
-//
-// A and B each get their own storage dir, Corestore and Hyperswarm: exactly
-// what two separate devices would have.
-//
+// backend/ end to end: two peers, each with its own storage and network,
+// like two separate devices.
 // 1. A creates a feed and publishes 2 notes
-// 2. B subscribes by key and receives both
-// 3. A publishes a 3rd note, B receives it live
-// 4. A goes away for good; B restarts from disk alone and still has all 3
+// 2. B subscribes and receives both
+// 3. A publishes a 3rd note; B receives it live
+// 4. A goes away; B restarts from disk and still has all 3
+//
+//   npm test   (runs on the Bare binary the app ships with)
 
 const Corestore = require('corestore')
 const Hyperswarm = require('hyperswarm')
@@ -50,7 +46,7 @@ function waitFor(emitter, event, count, filter, ms = 60000) {
   })
 }
 
-// What a host does: own the storage + swarm, wire replication once.
+// What a host does: own storage and networking, wire replication once.
 async function startPeer(name) {
   const store = new Corestore(path.join(root, name))
   const swarm = new Hyperswarm()
@@ -79,9 +75,7 @@ async function main() {
   const a = await startPeer('a')
   const own = await a.feed.createFeed({ name: 'Changefeed test releases' })
   log('A created feed', own.id)
-  // Wait until A's DHT announce has landed. B's lookup runs once when it
-  // joins; if it beats A's announce it finds nobody until the next periodic
-  // refresh (minutes). Real subscribers arrive long after the maintainer.
+  // B looks A up once when it joins, so A must announce itself first.
   await a.swarm.flush()
   log('A announced on the DHT')
   await a.feed.publish({ version: '1.0.0', title: 'First release', body: 'Hello peers' })
@@ -122,14 +116,12 @@ async function main() {
 
   await fs.promises.rm(root, { recursive: true, force: true })
   log('PASS')
-  // Under the app's sidecar Bare an open IPC pipe keeps us alive: exit explicitly.
   if (typeof Bare !== 'undefined') Bare.exit(0)
 }
 
 main().catch(async (err) => {
   console.error(err)
   await fs.promises.rm(root, { recursive: true, force: true }).catch(() => {})
-  // Bare has no process global; both expose an exit.
   if (typeof Bare !== 'undefined') Bare.exit(1)
   else process.exit(1)
 })

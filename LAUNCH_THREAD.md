@@ -22,6 +22,7 @@ Here's how 🧵
 **2/**
 
 How it works:
+
 1. A maintainer creates a feed and gets a key
 2. You paste the key once
 3. Every release note syncs to your machine, live
@@ -41,6 +42,7 @@ Apps install from a pear:// link instead of an app store, and run on Bare, a sma
 **4/**
 
 Under the hood:
+
 - Hypercore: an append-only log signed by the maintainer, so every note is verified on arrival
 - Hyperbee: a sorted key-value store on top, so newest-first is one range read
 - Hyperswarm: peers find each other directly, no server

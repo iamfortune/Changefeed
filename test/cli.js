@@ -1,67 +1,22 @@
-// End-to-end: the CLI (cli/bin.mjs on the app's Bare) follows a feed that a
-// maintainer worker publishes. Run with: node test/cli.js
+// The CLI follows a feed that a worker publishes:
+// 1. the worker creates a feed and publishes 2 notes
+// 2. the CLI subscribes and prints both
+// 3. the worker publishes a 3rd; the CLI prints it as new
+// 4. Ctrl+C: the CLI exits cleanly
+// 5. with the worker gone, the CLI restarts offline and prints all 3
 //
-// 1. maintainer creates a feed, publishes 2 notes
-// 2. CLI subscribes and prints both
-// 3. maintainer publishes a 3rd; CLI prints it as new
-// 4. Ctrl+C (SIGINT to the process group): CLI exits cleanly
-// 5. maintainer gone; CLI restarts offline and still prints all 3
+//   node test/cli.js
 
 const { spawn } = require('child_process')
-const PearRuntime = require('pear-runtime')
-const FramedStream = require('framed-stream')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const pkg = require('../package.json')
+const { log, assert, sleep, startWorker } = require('./helpers')
 
 const root = path.join(os.tmpdir(), 'changefeed-cli-test-' + Date.now())
-const started = Date.now()
-const log = (...a) => console.log('[' + ((Date.now() - started) / 1000).toFixed(1) + 's]', ...a)
-
-function assert(ok, msg) {
-  if (!ok) throw new Error('FAIL: ' + msg)
-  log('ok -', msg)
-}
-
-function startMaintainer() {
-  const worker = PearRuntime.run(require.resolve('../workers/main.js'), [
-    false,
-    pkg.version,
-    pkg.upgrade,
-    pkg.productName + '.app',
-    path.join(root, 'maintainer'),
-    null
-  ])
-  const pipe = new FramedStream(worker)
-  const pending = new Map()
-  let nextId = 1
-  pipe.on('data', (data) => {
-    const msg = JSON.parse(data.toString())
-    if (msg.type !== 'reply') return
-    const p = pending.get(msg.id)
-    pending.delete(msg.id)
-    msg.ok ? p.resolve(msg.payload) : p.reject(new Error(msg.payload.message))
-  })
-  return {
-    request(type, payload) {
-      const id = nextId++
-      return new Promise((resolve, reject) => {
-        pending.set(id, { resolve, reject })
-        pipe.write(JSON.stringify({ id, type, payload }))
-      })
-    },
-    stop: () =>
-      new Promise((resolve) => {
-        worker.once('exit', resolve)
-        pipe.destroy()
-      })
-  }
-}
 
 function startCli(key) {
-  // detached: own process group, so we can send SIGINT to the whole group
-  // like a terminal's Ctrl+C does.
+  // Own process group, so SIGINT reaches the whole group like Ctrl+C does.
   const child = spawn(
     'node',
     [
@@ -87,7 +42,7 @@ function startCli(key) {
       const end = Date.now() + ms
       while (!re.test(out)) {
         if (Date.now() > end) throw new Error('timed out waiting for ' + re)
-        await new Promise((r) => setTimeout(r, 250))
+        await sleep(250)
       }
     },
     ctrlC() {
@@ -98,12 +53,12 @@ function startCli(key) {
 }
 
 async function main() {
-  const m = startMaintainer()
+  const m = startWorker('maintainer', path.join(root, 'maintainer'))
   const feed = await m.request('create-feed', { name: 'CLI test feed' })
   await m.request('publish', { version: '1.0.0', title: 'First', body: 'line one\nline two' })
   await m.request('publish', { version: '1.0.1', title: 'Second' })
   log('maintainer feed', feed.id)
-  await new Promise((r) => setTimeout(r, 5000)) // let the announce land
+  await sleep(5000) // let the maintainer announce itself first
 
   const cli = startCli(feed.id)
   await cli.waitFor(/1\.0\.1\s+Second/)

@@ -1,13 +1,6 @@
-// Changefeed CLI: follow a release-notes feed from the terminal.
-//
-// A second host for backend/, which runs here unchanged. Like the desktop
-// worker, this host owns storage + networking and wires replication once;
-// backend/ only decides what to join. Single-threaded, like the
-// hello-pear-bare `single-thread` variant: no worker, no IPC, no updater
-// (the CLI isn't released on its own pear:// link).
+// Follow a feed from the terminal. Runs backend/ directly, with no worker.
 //
 //   npm run cli -- subscribe <feed-key> [--storage <dir>]
-//   (runs on the Bare binary the desktop app embeds: scripts/app-bare.js)
 
 import { command, flag, arg, summary } from 'paparam'
 import { persistent } from 'bare-storage'
@@ -27,7 +20,6 @@ const subscribe = command(
 
 const cmd = command('changefeed', summary('Peer-to-peer release notes'), subscribe)
 
-// parse() returns the matched command; bad input (e.g. missing key) throws.
 let matched
 try {
   matched = cmd.parse(Bare.argv.slice(2))
@@ -35,10 +27,8 @@ try {
   console.error(`error: ${err.message}\n\n${cmd.usage('subscribe')}`)
   Bare.exit(1)
 }
-if (matched === cmd && !cmd.flags.help) console.log(cmd.help()) // no subcommand
+if (matched === cmd && !cmd.flags.help) console.log(cmd.help())
 if (matched !== subscribe || subscribe.flags.help) Bare.exit(matched === null ? 1 : 0)
-
-// ---- output -------------------------------------------------------------------
 
 const tty = process.stdout.isTTY
 const dim = (s) => (tty ? `\x1b[2m${s}\x1b[22m` : s)
@@ -52,25 +42,21 @@ function printNote(note, live) {
   if (note.body) console.log(note.body.replace(/^/gm, '  '))
 }
 
-// ---- run ----------------------------------------------------------------------
-
-// Own storage, separate from the desktop app, so both can run at once.
+// Separate from the desktop app's storage, so both can run at once.
 const dir = subscribe.flags.storage || path.join(persistent(), 'changefeed-cli')
 
 const store = new Corestore(dir)
 const swarm = new Hyperswarm()
 swarm.on('connection', (conn) => store.replicate(conn))
-// Same namespace as the desktop worker, so a CLI pointed at a desktop
-// storage dir would see the same feeds.
+// Same namespace as the desktop worker.
 const changefeed = new Changefeed(store.namespace('changefeed'), swarm)
 changefeed.on('error', (err) => console.error('error:', err.message))
 
 const startedAt = Date.now()
-const printed = new Set() // createdAt of notes already shown
+const printed = new Set() // createdAt of notes already printed
 let feedId = null
 
-// Notes published before we started are history, even if they only reach us
-// now during the first sync; anything newer is live.
+// Notes published after the CLI started are marked new.
 changefeed.on('note', ({ feed, note }) => {
   if (feed !== feedId || printed.has(note.createdAt)) return
   printed.add(note.createdAt)
@@ -104,7 +90,7 @@ try {
   feedId = info.id
   console.log(bold(info.name || 'Waiting for feed…') + dim(`  ${info.id}`))
 
-  // Whatever is already on disk: readable offline. Oldest first, like a log.
+  // Saved notes, oldest first.
   const saved = await changefeed.notes(feedId)
   for (const note of saved.reverse()) {
     printed.add(note.createdAt)

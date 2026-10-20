@@ -1,5 +1,5 @@
-// Talks to the Bare worker through window.bridge (electron/preload.js).
-// Protocol is documented at the top of workers/main.js.
+// Talks to the worker through window.bridge (electron/preload.js).
+// The protocol is described at the top of workers/main.js.
 
 const bridge = window.bridge
 const decoder = new TextDecoder('utf-8')
@@ -26,7 +26,7 @@ function onMessage(text) {
   try {
     msg = JSON.parse(text)
   } catch {
-    // The template's plain-string updater messages: 'updating', 'updated'.
+    // Updater messages are plain strings: 'updating', 'updated'.
     return emit('updater', text)
   }
   if (msg.type === 'reply') {

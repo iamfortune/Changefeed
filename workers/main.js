@@ -1,42 +1,36 @@
-// Desktop host for the Changefeed backend. Runs in a Bare worker spawned by
-// electron/main.js; Electron itself never touches P2P code.
+// Desktop host for backend/. Runs in a Bare worker started by electron/main.js.
+// Based on https://github.com/holepunchto/hello-pear-worker.
 //
-// Based on https://github.com/holepunchto/hello-pear-worker, extended to:
-// - share one Corestore + Hyperswarm between the OTA updater and backend/
-// - translate IPC messages into backend/ calls and backend events into IPC
+// IPC protocol: one message per FramedStream frame.
 //
-// ---------------------------------------------------------------------------
-// IPC protocol (FramedStream over Bare.IPC, one message per frame)
+// Updater messages (plain strings):
+//   worker → app   'updating'                     an update is downloading
+//   worker → app   'updated'                      update ready, restart to apply
+//   app → worker   'pear:applyUpdate'             swap in the new build
+//   worker → app   'pear:updateApplied'           swap done, app can relaunch
+//   worker → app   'pear:updateFailed:<message>'  swap failed
 //
-// Template contract, plain UTF-8 strings (electron/main.js and the renderer
-// match these exactly, so they stay as-is):
-//   worker → app   'updating'             an update is downloading
-//   worker → app   'updated'              update ready, restart to apply
-//   app → worker   'pear:applyUpdate'     swap in the new build
-//   worker → app   'pear:updateApplied'   swap done, app can relaunch
-//
-// App messages, JSON:
+// App messages (JSON):
 //   app → worker   { id, type, payload }              request
 //   worker → app   { type: 'reply', id, ok, payload } reply (ok: false → payload.message)
 //
 //   requests:
 //     'init'         → { version, update, own: feedInfo|null, feeds: [feedInfo] }
-//                       update: null | 'updating' | 'updated' (see below)
+//                       update: null | 'updating' | 'updated'
 //     'create-feed'  { name }                  → feedInfo
 //     'publish'      { version, title, body }  → note
 //     'subscribe'    { id }                    → feedInfo
 //     'notes'        { id }                    → [note] (newest first)
 //
-//   events (worker → app, unprompted):
+//   events (worker → app):
 //     { type: 'note',  payload: { feed, note } }
 //     { type: 'feed',  payload: feedInfo }
 //     { type: 'peers', payload: { feed, peers } }
 //
 //   feedInfo = { id, name, writable, peers }
 //   note     = { version, title, body, createdAt }
-// ---------------------------------------------------------------------------
 
-const PearRuntime = require('pear-runtime') // pear-runtime on desktop; pear-mobile on mobile
+const PearRuntime = require('pear-runtime')
 const Hyperswarm = require('hyperswarm')
 const Corestore = require('corestore')
 const goodbye = require('graceful-goodbye')
@@ -46,18 +40,17 @@ const dir = require('bare-storage')
 const { isBareKit } = require('which-runtime')
 const Changefeed = require('../backend')
 
-// Mobile workers don't get the executable path (argv[0]) and entry path
-// (argv[1]), so desktop args start at index 2.
+// On desktop, argv[0] and argv[1] are the executable and entry paths.
 const argv = (index) => Bare.argv[index + (isBareKit ? 0 : 2)]
 
-// Spawn order is a contract with getWorker() in electron/main.js.
+// Argument order must match getWorker() in electron/main.js.
 const updaterConfig = {
   updates: argv(0) !== 'false',
   version: argv(1),
   upgrade: argv(2),
   name: argv(3),
-  dir: argv(4) || dir.persistent(), // argv[4] is undefined in mobile
-  app: argv(5) // argv[5] is undefined in mobile
+  dir: argv(4) || dir.persistent(),
+  app: argv(5)
 }
 
 const pipe = new FramedStream(Bare.IPC)
@@ -67,22 +60,17 @@ const pear = new PearRuntime({
   ...updaterConfig,
   swarm,
   store,
-  // Apply updates as soon as they arrive, for the demo. The production default
-  // (option omitted) waits a random delay of up to 1 hour after the first 60s
-  // of runtime, so a release doesn't make every install fetch it at once.
-  // pear-runtime passes this straight to pear-runtime-updater.
+  // Check for updates immediately. Without this, installs wait a random delay
+  // of up to an hour so a release doesn't reach everyone at once.
   delay: 0
 })
 
-// One replication stream per connection for the whole Corestore. It carries
-// both the app drive (OTA updates) and our feeds. In the template this line
-// sits inside the `updates` check below; it is hoisted so feeds replicate
-// even when updates are off (e.g. `npm start`, which passes --no-updates).
+// One replication stream per connection carries both app updates and feeds,
+// so feeds still sync when updates are off (`npm start`).
 swarm.on('connection', (connection) => store.replicate(connection))
 
 pear.updater.on('error', console.error)
-if (updaterConfig.updates !== false) {
-  // Only look for the app drive (where releases live) when updates are on.
+if (updaterConfig.updates) {
   swarm.join(pear.updater.drive.core.discoveryKey, {
     client: true,
     server: false
@@ -91,9 +79,8 @@ if (updaterConfig.updates !== false) {
 
 console.log('Application storage:', pear.storage)
 
-// The updater events are one-shot: if no window is open when they fire (on
-// macOS the app keeps running with its window closed), the banner is missed.
-// Remember the last one so 'init' can tell a window opened later.
+// Updater events fire once. Remember the last one so a window opened later
+// can still show the update banner.
 let update = null
 pear.updater.on('updating', () => {
   update = 'updating'
@@ -104,8 +91,7 @@ pear.updater.on('updated', () => {
   pipe.write('updated')
 })
 
-// A namespace keeps our core names from colliding with the updater's.
-// Same underlying store, so the replication above covers it.
+// A namespace keeps feed core names apart from the updater's.
 const changefeed = new Changefeed(store.namespace('changefeed'), swarm)
 
 function send(type, payload) {
@@ -151,20 +137,22 @@ goodbye(async () => {
   await store.close()
 })
 
-// If the app goes away without stopping us (crash, force quit), the IPC pipe
-// ends. Shut down cleanly instead of lingering in the background, still
-// announcing on the DHT and holding the storage lock.
-// 'end', not 'close': the pipe is half-open by default, so when only the
-// other side goes away 'close' never fires (checked by SIGKILLing a parent).
+// Exit when the app goes away (crash, force quit) so the worker doesn't keep
+// running and holding the storage lock. The pipe is half-open, so 'close'
+// never fires when only the app side closes: listen for 'end'.
 pipe.on('end', () => goodbye.exit())
 pipe.on('error', (err) => console.error('IPC pipe:', err.message))
 
 pipe.on('data', async (data) => {
   const message = data.toString()
   if (message === 'pear:applyUpdate') {
-    await pear.ready()
-    await pear.updater.applyUpdate()
-    pipe.write('pear:updateApplied')
+    try {
+      await pear.ready()
+      await pear.updater.applyUpdate()
+      pipe.write('pear:updateApplied')
+    } catch (err) {
+      pipe.write('pear:updateFailed:' + err.message)
+    }
     return
   }
 
@@ -172,7 +160,7 @@ pipe.on('data', async (data) => {
   try {
     request = JSON.parse(message)
   } catch {
-    console.log(message) // not JSON: log it, like the template does
+    console.log(message)
     return
   }
   onRequest(request)

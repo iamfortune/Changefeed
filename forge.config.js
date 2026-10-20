@@ -27,13 +27,9 @@ function getWindowsKitVersion() {
 
 let packagerConfig = {
   icon: 'build/icon',
-  protocols: [{ name: appName, schemes: [pkg.name] }],
   derefSymlinks: true,
-  // The packager copies the whole project folder; .gitignore doesn't apply.
-  // Top-level docs aren't needed at runtime (and some are local-only), so
-  // keep them out of the app and the pear:// link.
-  // /out/ is Forge's default, which setting `ignore` replaces.
-  ignore: [/^\/out\//, /^\/[^/]+\.md$/, /^\/todo$/]
+  // Keep build output and docs out of the app.
+  ignore: [/^\/out\//, /^\/[^/]+\.md$/, /^\/(docs|agent_docs)(\/|$)/, /^\/todo$/]
 }
 
 if (process.env.MAC_CODESIGN_IDENTITY) {
@@ -110,10 +106,10 @@ module.exports = {
           summary: 'Peer-to-peer release-notes feed',
           description:
             'Publish release notes peer to peer. Subscribers follow a feed by key and keep every note offline.',
-          contact: 'https://github.com/iamfortune/Changefeed/issues',
+          contact: 'https://github.com/iamfortune/changefeed/issues',
           license: 'Apache-2.0',
-          issues: 'https://github.com/iamfortune/Changefeed/issues',
-          website: 'https://github.com/iamfortune/Changefeed',
+          issues: 'https://github.com/iamfortune/changefeed/issues',
+          website: 'https://github.com/iamfortune/changefeed',
           app: {
             extensions: ['gnome'],
             plugs: [
@@ -122,9 +118,6 @@ module.exports = {
               'home',
               'x11',
               'wayland',
-              'audio-playback',
-              'audio-record',
-              'camera',
               'opengl',
               'network',
               'network-bind',
@@ -144,7 +137,7 @@ module.exports = {
   ],
 
   hooks: {
-    readPackageJson: async (forgeConfig, packageJson) => {
+    readPackageJson: (forgeConfig, packageJson) => {
       if (process.env.UPGRADE_KEY) {
         packageJson.upgrade = process.env.UPGRADE_KEY
       }
@@ -157,7 +150,7 @@ module.exports = {
 
       return packageJson
     },
-    preMake: async () => {
+    preMake: () => {
       fs.rmSync(path.join(__dirname, 'out', 'make'), { recursive: true, force: true })
 
       const manifest = path.join(__dirname, 'build', 'AppxManifest.xml')
@@ -165,7 +158,7 @@ module.exports = {
       const xml = fs.readFileSync(manifest, 'utf-8')
       fs.writeFileSync(manifest, xml.replace(/Version="[^"]*"/, `Version="${msixVersion}"`))
     },
-    postMake: async (forgeConfig, results) => {
+    postMake: (forgeConfig, results) => {
       for (const result of results) {
         if (result.platform !== 'win32') continue
         for (const artifact of result.artifacts) {

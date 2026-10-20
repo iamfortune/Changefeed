@@ -1,34 +1,26 @@
-// Changefeed backend: the shareable P2P core.
+// Changefeed backend, shared by the desktop worker and the CLI.
 //
-// A "feed" is a Hyperbee (a key/value B-tree stored on a single-writer
-// Hypercore). The maintainer owns the only writable copy; subscribers hold
-// read-only replicas that they keep on disk, so every note stays readable
-// with no peers online.
+// A feed is a Hyperbee on a single-writer Hypercore. The maintainer holds the
+// only writable copy; subscribers keep full read-only copies on disk.
 //
-// This module runs unchanged in the desktop Bare worker and the CLI, so it
-// makes no assumptions about its host:
-// - no Electron, no UI, no process/argv/env access
-// - the host passes in a Corestore (storage) and a Hyperswarm (networking)
-// - the HOST wires replication, once, for its whole Corestore:
-//     swarm.on('connection', (conn) => store.replicate(conn))
-//   The backend only decides which topics to join. This keeps a single
-//   replication stream per connection even when the host shares the same
-//   Corestore/swarm with other components (e.g. the pear-runtime updater).
+// The host passes in a Corestore and a Hyperswarm and wires replication once:
+//   swarm.on('connection', (conn) => store.replicate(conn))
+// This module only joins and leaves feed topics.
 //
 // Events:
-//   'note'  ({ feed, note })        a note we didn't have before (local or remote)
-//   'feed'  (feedInfo)              a feed's metadata changed (e.g. name synced)
-//   'peers' ({ feed, peers })       number of peers replicating that feed
+//   'note'  ({ feed, note })    a note we didn't have before (local or remote)
+//   'feed'  (feedInfo)          a feed's name changed
+//   'peers' ({ feed, peers })   number of peers connected for that feed
 
-const EventEmitter = require('events') // bare-events under Bare, see package.json#imports
+const EventEmitter = require('events')
 const Hyperbee = require('hyperbee')
 const id = require('hypercore-id-encoding')
 
 const NOTE_PREFIX = 'note!'
+const NOTE_RANGE = { gt: NOTE_PREFIX, lt: NOTE_PREFIX + '\xff' }
 const SUB_PREFIX = 'sub!'
 
-// Hyperbee sorts keys by their bytes, so zero-padding the timestamp makes
-// lexicographic order == chronological order. 15 digits covers any ms epoch.
+// Keys sort as bytes, so a zero-padded timestamp keeps notes in time order.
 function noteKey(createdAt) {
   return NOTE_PREFIX + String(createdAt).padStart(15, '0')
 }
@@ -37,7 +29,7 @@ class Feed {
   constructor(bee) {
     this.bee = bee
     this.core = bee.core
-    this.id = id.encode(bee.core.key) // z-base32, same alphabet as pear:// links
+    this.id = id.encode(bee.core.key)
     this.name = null
     this.watcher = null
     this.download = null
@@ -66,9 +58,7 @@ class Changefeed extends EventEmitter {
     this.ownFeed = null
     this.closed = false
 
-    // Local-only bookkeeping (which feeds we own / follow), so they can be
-    // reopened after a restart with no network. Nobody else knows this
-    // core's key, so it never leaves this device.
+    // Which feeds this device owns and follows. Never shared with peers.
     this.local = new Hyperbee(store.get({ name: 'local' }), {
       keyEncoding: 'utf-8',
       valueEncoding: 'json'
@@ -94,11 +84,8 @@ class Changefeed extends EventEmitter {
     }
   }
 
-  // ---- maintainer ---------------------------------------------------------
-
-  // Creates this device's feed (or returns it if it already exists).
-  // The core is derived from the Corestore's primary key + a fixed name,
-  // so the same storage always yields the same feed key.
+  // Creates this device's feed, or returns it if it already exists.
+  // The same storage always gives the same feed key.
   async createFeed({ name } = {}) {
     await this.ready()
     if (this.ownFeed) return this.ownFeed.info()
@@ -126,22 +113,15 @@ class Changefeed extends EventEmitter {
       createdAt: Date.now()
     }
 
-    // Single writer, but guard against two publishes in the same millisecond
-    // overwriting each other.
-    const last = await this.ownFeed.bee.peek(
-      { gt: NOTE_PREFIX, lt: NOTE_PREFIX + '\xff' },
-      { reverse: true }
-    )
+    // Two publishes in the same millisecond would share a key.
+    const last = await this.ownFeed.bee.peek(NOTE_RANGE, { reverse: true })
     if (last && last.value.createdAt >= note.createdAt) note.createdAt = last.value.createdAt + 1
 
     await this.ownFeed.bee.put(noteKey(note.createdAt), note)
     return note
   }
 
-  // ---- subscriber ---------------------------------------------------------
-
-  // Follows a feed by key (z-base32 or hex). Returns immediately; existing
-  // and future notes arrive as 'note' events once peers are found.
+  // Follows a feed by key. Notes arrive as 'note' events once peers are found.
   async subscribe(feedId) {
     await this.ready()
     let key
@@ -156,23 +136,18 @@ class Changefeed extends EventEmitter {
     return feed.info()
   }
 
-  // ---- reading ------------------------------------------------------------
-
   list() {
     return [...this.feeds.values()].map((f) => f.info())
   }
 
-  // Newest first. Reads only from local storage: works offline.
+  // Newest first, from local storage, so it works offline.
   async notes(feedId) {
     await this.ready()
     const feed = this.feeds.get(feedId)
     if (!feed) throw new Error('Unknown feed: ' + feedId)
 
     const notes = []
-    for await (const { value } of feed.bee.createReadStream(
-      { gt: NOTE_PREFIX, lt: NOTE_PREFIX + '\xff' },
-      { reverse: true }
-    )) {
+    for await (const { value } of feed.bee.createReadStream(NOTE_RANGE, { reverse: true })) {
       notes.push(value)
     }
     return notes
@@ -183,8 +158,6 @@ class Changefeed extends EventEmitter {
     this.closed = true
     await this._opening.catch(() => {})
     for (const feed of this.feeds.values()) {
-      // Stop announcing/looking up this feed. Doesn't close the swarm:
-      // the host owns it.
       await this.swarm.leave(feed.core.discoveryKey)
       if (feed.download) feed.download.destroy()
       if (feed.watcher) await feed.watcher.close()
@@ -192,8 +165,6 @@ class Changefeed extends EventEmitter {
     }
     await this.local.close()
   }
-
-  // ---- internals ----------------------------------------------------------
 
   async _openOwnFeed() {
     const core = this.store.get({ name: 'own-feed' })
@@ -215,9 +186,8 @@ class Changefeed extends EventEmitter {
     const feed = new Feed(bee)
     this.feeds.set(feed.id, feed)
 
-    // Cores are sparse by default (only blocks you read are stored).
-    // A release-notes feed is small and must work offline, so subscribers
-    // eagerly download everything, including future appends (end: -1).
+    // Subscribers download the whole feed, including future notes, so it
+    // works offline.
     if (!core.writable) feed.download = core.download({ start: 0, end: -1 })
 
     const onPeers = () => this.emit('peers', { feed: feed.id, peers: core.peers.length })
@@ -229,11 +199,8 @@ class Changefeed extends EventEmitter {
 
     this._watch(feed)
 
-    // Discovery: the topic is the core's discovery key (a hash of the public
-    // key), so peers can find each other without revealing the key itself.
-    // Everyone joins as client AND server: subscribers re-serve notes to
-    // other subscribers, so the feed stays available when the maintainer
-    // is offline.
+    // Every peer also serves the feed, so subscribers can sync from each
+    // other while the maintainer is offline.
     const done = core.findingPeers()
     this.swarm.join(core.discoveryKey)
     this.swarm.flush().then(done, done)
@@ -241,14 +208,13 @@ class Changefeed extends EventEmitter {
     return feed
   }
 
-  // Emits 'note' for every note that appears after the current version,
-  // whether written locally or replicated from a peer.
+  // Emits 'note' for each new note, local or from a peer.
   async _watch(feed) {
     feed.watcher = feed.bee.watch()
     try {
       for await (const [current, previous] of feed.watcher) {
         for await (const { left, right } of current.createDiffStream(previous.version)) {
-          if (!left) continue // deletion: we never delete
+          if (!left) continue
           if (left.key.startsWith(NOTE_PREFIX)) {
             if (!right) this.emit('note', { feed: feed.id, note: left.value })
           } else if (left.key === 'info') {
