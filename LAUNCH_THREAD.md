@@ -7,6 +7,10 @@ never heard of Pear, Bare or Holepunch. Each post is under 280 characters.
 
 **1/**
 
+[![Changefeed, a Pear application (watch the demo)](https://cdn.loom.com/sessions/thumbnails/79f6f459a3e94c10bdde1d40f18273a1-34aa051369b1be19.gif)](https://www.loom.com/share/79f6f459a3e94c10bdde1d40f18273a1)
+
+▶️ [Watch the demo](https://www.loom.com/share/79f6f459a3e94c10bdde1d40f18273a1)
+
 Release notes live on servers. When the site's down or you're offline, they're gone.
 
 I built Changefeed: release notes that go straight from maintainer to subscribers, peer to peer. No server, no account, works offline.
@@ -62,8 +66,8 @@ Lesson learned: Bare is its own runtime, so test on the exact version you ship.
 **7/**
 
 Try it:
-Install: pear://[your link]
-Code and docs: github.com/[you]/changefeed
-2-min demo: [video link]
+Install: pear://7ffucmhbpa7z5hcao4t6435c6ndqryn38iu6nfzqwubqykap15yy
+Code and docs: github.com/iamfortune/changefeed
+3-min demo: loom.com/share/79f6f459a3e94c10bdde1d40f18273a1
 
 If you've never built peer to peer, this is a good place to start.
