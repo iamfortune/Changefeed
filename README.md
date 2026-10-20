@@ -78,7 +78,3 @@ Create a feed in one window and subscribe from the other.
 - [How it works](docs/how-it-works.md): architecture, data format, updates,
   releasing, limitations.
 - [AGENTS.md](AGENTS.md): notes for coding agents working on this repo.
-
-Built from Holepunch's
-[hello-pear-electron](https://github.com/holepunchto/hello-pear-electron)
-template.
